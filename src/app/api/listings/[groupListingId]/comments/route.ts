@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -10,9 +9,8 @@ const CommentSchema = z.object({
 });
 
 export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ groupListingId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = (session.user as { id: string }).id;
+  const userId = await getAuthUserId(req);
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const gl = await prisma.groupListing.findFirst({
     where: { id: (await paramsPromise).groupListingId, group: { members: { some: { userId } } } },
@@ -44,9 +42,8 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
 }
 
 export async function DELETE(req: NextRequest, { params: paramsPromise }: { params: Promise<{ groupListingId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = (session.user as { id: string }).id;
+  const userId = await getAuthUserId(req);
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const url = new URL(req.url);
   const commentId = url.searchParams.get("commentId");

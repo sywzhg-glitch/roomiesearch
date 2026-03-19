@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const RequestSchema = z.object({ message: z.string().optional() });
 
 export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ profileId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = (session.user as { id: string }).id;
+  const userId = await getAuthUserId(req);
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const profile = await prisma.marketplaceProfile.findUnique({ where: { id: (await paramsPromise).profileId } });
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });

@@ -1,7 +1,10 @@
 import { NextAuthOptions } from "next-auth";
+import { getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
+import { jwtVerify } from "jose";
+import type { NextRequest } from "next/server";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -54,4 +57,28 @@ export const authOptions: NextAuthOptions = {
 
 export function getUserId(session: { user?: { id?: string } } | null): string | null {
   return session?.user?.id ?? null;
+}
+
+/**
+ * Dual-auth helper for API routes.
+ * Supports both:
+ *   1. Mobile: Authorization: Bearer <JWT signed with NEXTAUTH_SECRET>
+ *   2. Web: NextAuth session cookie (getServerSession fallback)
+ */
+export async function getAuthUserId(req: NextRequest): Promise<string | null> {
+  // 1. Try Bearer token (mobile app)
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    try {
+      const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!);
+      const { payload } = await jwtVerify(token, secret);
+      return (payload as { id: string }).id ?? null;
+    } catch {
+      return null;
+    }
+  }
+  // 2. Fall back to NextAuth session cookie (web app)
+  const session = await getServerSession(authOptions);
+  return session?.user ? (session.user as { id: string }).id : null;
 }

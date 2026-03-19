@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
-export async function GET(_: NextRequest, { params: paramsPromise }: { params: Promise<{ groupListingId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = (session.user as { id: string }).id;
+export async function GET(req: NextRequest, { params: paramsPromise }: { params: Promise<{ groupListingId: string }> }) {
+  const userId = await getAuthUserId(req);
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const gl = await prisma.groupListing.findFirst({
     where: {
@@ -38,9 +36,8 @@ const UpdateStatusSchema = z.object({
 });
 
 export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ groupListingId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = (session.user as { id: string }).id;
+  const userId = await getAuthUserId(req);
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const gl = await prisma.groupListing.findFirst({
     where: { id: (await paramsPromise).groupListingId, group: { members: { some: { userId } } } },
@@ -62,10 +59,9 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
   }
 }
 
-export async function DELETE(_: NextRequest, { params: paramsPromise }: { params: Promise<{ groupListingId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = (session.user as { id: string }).id;
+export async function DELETE(req: NextRequest, { params: paramsPromise }: { params: Promise<{ groupListingId: string }> }) {
+  const userId = await getAuthUserId(req);
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const gl = await prisma.groupListing.findFirst({
     where: { id: (await paramsPromise).groupListingId, group: { members: { some: { userId } } } },
