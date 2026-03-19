@@ -32,6 +32,9 @@ Thumbs.db
 .idea/
 *.swp
 
+# Claude launch config (contains secrets)
+.claude/launch.json
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
