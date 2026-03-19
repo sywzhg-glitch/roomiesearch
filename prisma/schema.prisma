@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String?
+  avatar       String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  groupMemberships   GroupMember[]
+  ratings            ListingRating[]
+  comments           ListingComment[]
+  applicationData    ApplicationData?
+  marketplaceProfile MarketplaceProfile?
+  sentRequests       MarketplaceRequest[] @relation("SentRequests")
+
+  @@map("users")
+}
+
+model Group {
+  id         String    @id @default(cuid())
+  name       String
+  inviteCode String    @unique @default(cuid())
+  location   String?
+  budgetMin  Int?
+  budgetMax  Int?
+  moveInDate DateTime?
+  bedsMin    Int?
+  bedsMax    Int?
+  baths      Float?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  members            GroupMember[]
+  listings           GroupListing[]
+  marketplaceProfile MarketplaceProfile?
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id       String    @id @default(cuid())
+  userId   String
+  groupId  String
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@map("group_members")
+}
+
+enum GroupRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Listing {
+  id            String   @id @default(cuid())
+  url           String?
+  price         Int?
+  address       String?
+  city          String?
+  state         String?
+  zip           String?
+  beds          Float?
+  baths         Float?
+  sqft          Int?
+  description   String?
+  images        String[]
+  landlordName  String?
+  landlordEmail String?
+  landlordPhone String?
+  aiSuggested   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  groupListings GroupListing[]
+
+  @@map("listings")
+}
+
+model GroupListing {
+  id        String        @id @default(cuid())
+  groupId   String
+  listingId String
+  status    ListingStatus @default(CONSIDERING)
+  addedById String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  group    Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  listing  Listing         @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  ratings  ListingRating[]
+  comments ListingComment[]
+
+  @@unique([groupId, listingId])
+  @@map("group_listings")
+}
+
+enum ListingStatus {
+  CONSIDERING
+  APPLYING
+  APPLIED
+  REJECTED
+  SIGNED
+}
+
+model ListingRating {
+  id             String   @id @default(cuid())
+  groupListingId String
+  userId         String
+  rating         Int      // 1-5
+  interested     Boolean  @default(false)
+  applying       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  groupListing GroupListing @relation(fields: [groupListingId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupListingId, userId])
+  @@map("listing_ratings")
+}
+
+model ListingComment {
+  id             String   @id @default(cuid())
+  groupListingId String
+  userId         String
+  content        String
+  parentId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  groupListing GroupListing     @relation(fields: [groupListingId], references: [id], onDelete: Cascade)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent       ListingComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies      ListingComment[] @relation("CommentReplies")
+
+  @@map("listing_comments")
+}
+
+model ApplicationData {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  firstName       String?
+  lastName        String?
+  email           String?
+  phone           String?
+  currentAddress  String?
+  income          Int?
+  employer        String?
+  jobTitle        String?
+  employmentYears Int?
+  creditScore     Int?
+  hasGuarantor    Boolean  @default(false)
+  guarantorName   String?
+  guarantorEmail  String?
+  guarantorPhone  String?
+  guarantorIncome Int?
+  documents       String[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("application_data")
+}
+
+model MarketplaceProfile {
+  id          String          @id @default(cuid())
+  userId      String?         @unique
+  groupId     String?         @unique
+  type        MarketplaceType
+  title       String
+  description String?
+  location    String?
+  budgetMin   Int?
+  budgetMax   Int?
+  moveInDate  DateTime?
+  openRooms   Int?
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user             User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group            Group?               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  receivedRequests MarketplaceRequest[] @relation("ReceivedRequests")
+
+  @@map("marketplace_profiles")
+}
+
+enum MarketplaceType {
+  OPEN_ROOM
+  LOOKING_FOR_GROUP
+  LOOKING_TO_JOIN
+}
+
+model MarketplaceRequest {
+  id          String        @id @default(cuid())
+  fromUserId  String
+  toProfileId String
+  message     String?
+  status      RequestStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  fromUser  User               @relation("SentRequests", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toProfile MarketplaceProfile @relation("ReceivedRequests", fields: [toProfileId], references: [id], onDelete: Cascade)
+
+  @@map("marketplace_requests")
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
