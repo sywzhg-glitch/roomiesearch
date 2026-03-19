@@ -1,0 +1,17 @@
+# Expo generated
+expo-env.d.ts
+
+# Expo dev server cache
+.expo/
+
+# Local env (machine-specific LAN IP)
+.env
+
+# Dependencies
+node_modules/
+
+# Package lock
+package-lock.json
+
+# Build
+dist/

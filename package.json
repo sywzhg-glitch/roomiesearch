@@ -2,7 +2,7 @@
   "name": "roomie-search",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["shared", "mobile"],
+  "workspaces": ["shared"],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
